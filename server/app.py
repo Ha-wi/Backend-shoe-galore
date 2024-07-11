@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, make_response, request
 from flask_migrate import Migrate
 from flask_restful import Api, Resource
+from flask_bcrypt import Bcrypt
 
 from models import db, UserModel, Product 
 
@@ -15,6 +16,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # create a Migrate object to manage schema modifications
 migrate = Migrate(app, db)
+
+# create a Bcrypt object to hash passwords
+bcrypt = Bcrypt(app)
 
 # initialize the Flask application to use the database
 db.init_app(app)

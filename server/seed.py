@@ -1,7 +1,7 @@
 from faker import Faker
 
 from app import app
-from models import db, User, Product
+from models import db, UserModel, Product
 
 fake = Faker()
 
@@ -14,7 +14,7 @@ with app.app_context():
         email = fake.email()
         password = fake.password()
 
-        user = User(username=name, email=email, password=password)
+        user = UserModel(username=name, email=email, password=password)
         db.session.add(user)
 
         product = Product(name=name, price=10.00)
