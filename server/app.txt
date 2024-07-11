@@ -1,0 +1,13 @@
+def delete(self, user_id):
+        user_id = request.args.get('id')
+        if user_id is None:
+            return {"error": "User ID is required"}, 400
+
+        user = UserModel.query.get(user_id)
+        if user is None:
+            return {"error": "User not found"}, 404
+
+        db.session.delete(user)
+        db.session.commit()
+        return '', 204
+ 
