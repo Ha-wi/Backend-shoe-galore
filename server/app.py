@@ -2,6 +2,7 @@ from flask import Flask, jsonify, make_response, request, url_for
 from flask_migrate import Migrate
 from flask_restful import Api, Resource
 from flask_bcrypt import Bcrypt
+from sqlalchemy.exc import IntegrityError
 
 from models import db, UserModel, ProductModel, cartModel, cartItemModel, OrderModel, OrderItemModel, ReviewModel
 
@@ -29,7 +30,7 @@ api = Api(app)
 class Home(Resource):
     def get(self):
         response_dict = {
-            "message": "Welcome to the Newsletter RESTful API",
+            "message": "Welcome to ShoeGalore API. Here are the available resources: /users, /products, /carts, /cart_items, /orders, /order_items, /reviews",
         }
         return response_dict, 200
 
@@ -56,6 +57,14 @@ class UserResource(Resource):
 
         db.session.add(new_user)
         db.session.commit()
+
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+
+            return {"error": "User with this username or email already exists"}, 400    
 
         return new_user.to_dict(), 201
     #get all users
@@ -110,12 +119,22 @@ class ProductResource(Resource):
         data = request.get_json()
         if not data or not all(key in data for key in ("name", "price", "stock")):
             return {"error": "Missing required fields"}, 400
+
         name = data["name"]
         price = data["price"]
         stock = data["stock"]
+
+        if price < 0 or stock < 0:
+            return {"error": "Price and stock must be non-negative"}, 400
+
         new_product = ProductModel(name=name, price=price, stock=stock)
-        db.session.add(new_product)
-        db.session.commit()
+        try:
+            db.session.add(new_product)
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            return {"error": "Product already exists"}, 400
+
         return new_product.to_dict(), 201
 
     #update product
@@ -170,9 +189,15 @@ class CartResource(Resource):
         data = request.get_json()
         if not data or not all(key in data for key in ("user_id", "product_id", "quantity")):
             return {"error": "Missing required fields"}, 400
-        new_cart = cartModel(user_id=data["user_id"], product_id=data["product_id"], quantity=data["quantity"])
+
+        quantity = data["quantity"]
+        if quantity <= 0:
+            return {"error": "Quantity must be greater than zero"}, 400
+
+        new_cart = cartModel(user_id=data["user_id"], product_id=data["product_id"], quantity=quantity)
         db.session.add(new_cart)
         db.session.commit()
+
         return new_cart.to_dict(), 201
     #get all carts
     def get(self):
@@ -192,12 +217,18 @@ class CartResourceById(Resource):
     #update cart
     def put(self, cart_id):
         data = request.get_json()
-        if not data or not all(key in data for key in ("quantity")):
+        if not data or "quantity" not in data:
             return {"error": "Missing required fields"}, 400
+
         cart = cartModel.query.get(cart_id)
         if not cart:
             return {"error": "Cart not found"}, 404
-        cart.quantity = data["quantity"]
+
+        quantity = data["quantity"]
+        if quantity <= 0:
+            return {"error": "Quantity must be greater than zero"}, 400
+
+        cart.quantity = quantity
         db.session.commit()
         return cart.to_dict(), 200
 
@@ -218,6 +249,22 @@ class CartItemResource(Resource):
     def get(self):
         cart_items = cartItemModel.query.all()
         return [cart_item.to_dict() for cart_item in cart_items], 200
+
+    # Add a new cart item
+    def post(self):
+        data = request.get_json()
+        if not data or not all(key in data for key in ("cart_id", "product_id", "quantity")):
+            return {"error": "Missing required fields"}, 400
+
+        quantity = data["quantity"]
+        if quantity <= 0:
+            return {"error": "Quantity must be greater than zero"}, 400
+
+        new_cart_item = cartItemModel(cart_id=data["cart_id"], product_id=data["product_id"], quantity=quantity)
+        db.session.add(new_cart_item)
+        db.session.commit()
+
+        return new_cart_item.to_dict(), 201
 
 api.add_resource(CartItemResource,'/cart_items')
 
@@ -243,12 +290,18 @@ class CartItemByIdResource(Resource):
     #update cart item
     def put(self, cart_item_id):
         data = request.get_json()
-        if not data or not all(key in data for key in ("quantity")):
+        if not data or "quantity" not in data:
             return {"error": "Missing required fields"}, 400
+
         cart_item = cartItemModel.query.get(cart_item_id)
         if not cart_item:
             return {"error": "Cart item not found"}, 404
-        cart_item.quantity = data["quantity"]
+
+        quantity = data["quantity"]
+        if quantity <= 0:
+            return {"error": "Quantity must be greater than zero"}, 400
+
+        cart_item.quantity = quantity
         db.session.commit()
         return cart_item.to_dict(), 200
 
@@ -276,9 +329,15 @@ class OrderResource(Resource):
         data = request.get_json()
         if not data or not all(key in data for key in ("user_id", "product_id", "quantity")):
             return {"error": "Missing required fields"}, 400
-        new_order = OrderModel(user_id=data["user_id"], product_id=data["product_id"], quantity=data["quantity"])
+
+        quantity = data["quantity"]
+        if quantity <= 0:
+            return {"error": "Quantity must be greater than zero"}, 400
+
+        new_order = OrderModel(user_id=data["user_id"], product_id=data["product_id"], quantity=quantity)
         db.session.add(new_order)
         db.session.commit()
+
         return new_order.to_dict(), 201
 
 api.add_resource(OrderResource,'/orders')
@@ -295,14 +354,21 @@ class OrderByIdResource(Resource):
     # Update order
     def put(self, order_id):
         data = request.get_json()
-        if not data or not all(key in data for key in ("quantity")):
+        if not data or "quantity" not in data:
             return {"error": "Missing required fields"}, 400
+
         order = OrderModel.query.get(order_id)
         if not order:
             return {"error": "Order not found"}, 404
-        order.quantity = data["quantity"]
+
+        quantity = data["quantity"]
+        if quantity <= 0:
+            return {"error": "Quantity must be greater than zero"}, 400
+
+        order.quantity = quantity
         db.session.commit()
         return order.to_dict(), 200
+
 
     # Delete order
     def delete(self, order_id):
@@ -327,9 +393,15 @@ class OrderItemResource(Resource):
         data = request.get_json()
         if not data or not all(key in data for key in ("order_id", "product_id", "quantity")):
             return {"error": "Missing required fields"}, 400
-        new_order_item = OrderItemModel(order_id=data["order_id"], product_id=data["product_id"], quantity=data["quantity"])
+
+        quantity = data["quantity"]
+        if quantity <= 0:
+            return {"error": "Quantity must be greater than zero"}, 400
+
+        new_order_item = OrderItemModel(order_id=data["order_id"], product_id=data["product_id"], quantity=quantity)
         db.session.add(new_order_item)
         db.session.commit()
+
         return new_order_item.to_dict(), 201
 
 api.add_resource(OrderItemResource,'/order_items')
@@ -347,12 +419,18 @@ class OrderItemByIdResource(Resource):
     # Update order item
     def put(self, order_item_id):
         data = request.get_json()
-        if not data or not all(key in data for key in ("quantity")):
+        if not data or "quantity" not in data:
             return {"error": "Missing required fields"}, 400
+
         order_item = OrderItemModel.query.get(order_item_id)
         if not order_item:
             return {"error": "Order item not found"}, 404
-        order_item.quantity = data["quantity"]
+
+        quantity = data["quantity"]
+        if quantity <= 0:
+            return {"error": "Quantity must be greater than zero"}, 400
+
+        order_item.quantity = quantity
         db.session.commit()
         return order_item.to_dict(), 200
 
@@ -379,9 +457,15 @@ class ReviewResource(Resource):
         data = request.get_json()
         if not data or not all(key in data for key in ("user_id", "product_id", "rating", "comment")):
             return {"error": "Missing required fields"}, 400
-        new_review = ReviewModel(user_id=data["user_id"], product_id=data["product_id"], rating=data["rating"], comment=data["comment"])
+
+        rating = data["rating"]
+        if not (1 <= rating <= 5):
+            return {"error": "Rating must be between 1 and 5"}, 400
+
+        new_review = ReviewModel(user_id=data["user_id"], product_id=data["product_id"], rating=rating, comment=data["comment"])
         db.session.add(new_review)
         db.session.commit()
+
         return new_review.to_dict(), 201
     
 
@@ -402,14 +486,19 @@ class ReviewByIdResource(Resource):
         data = request.get_json()
         if not data or not all(key in data for key in ("rating", "comment")):
             return {"error": "Missing required fields"}, 400
+
         review = ReviewModel.query.get(review_id)
         if not review:
             return {"error": "Review not found"}, 404
-        review.rating = data["rating"]
+
+        rating = data["rating"]
+        if not (1 <= rating <= 5):
+            return {"error": "Rating must be between 1 and 5"}, 400
+
+        review.rating = rating
         review.comment = data["comment"]
         db.session.commit()
         return review.to_dict(), 200
-
     # Delete review
     def delete(self, review_id):
         review = ReviewModel.query.get(review_id)
