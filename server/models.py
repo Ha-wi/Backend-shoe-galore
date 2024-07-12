@@ -1,3 +1,4 @@
+#models.py
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import MetaData
 from sqlalchemy_serializer import SerializerMixin
@@ -21,7 +22,7 @@ class UserModel(db.Model, SerializerMixin):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
-
+    cart = db.relationship('cartModel', backref='user', lazy=True)
     def __init__(self, username, email, password):
         self.username = username
         self.email = email
@@ -41,24 +42,38 @@ class UserModel(db.Model, SerializerMixin):
             
         }
         
-   # def __repr__(self):
-       # return '<User %r>' % self.username
+    def __repr__(self):
+        return '<User %r>' % self.username
 
-class Product(db.Model,SerializerMixin):
+class ProductModel(db.Model, SerializerMixin):
     __tablename__ = 'product'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
     price = db.Column(db.Float, nullable=False)
+    stock = db.Column(db.Integer, nullable=False)
+    cart = db.relationship('cartModel', backref='product', lazy=True)
 
-    def to_dict(self, name, price):
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'price': self.price
+        }
+
+    def __init__(self, name, price, stock=None, user_id=None, product_id=None, quantity=None):
         self.name = name
         self.price = price
+        self.stock = stock
+        self.user_id = user_id
+        self.product_id = product_id
+        self.quantity = quantity
 
     def __repr__(self):
-        return '<Product %r>' % self.name    
+        return f'<Product {self.name}>'
+ 
 
-class cart(db.Model):
+class cartModel(db.Model):
     __tablename__ = 'cart'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -71,16 +86,33 @@ class cart(db.Model):
         self.product_id = product_id
         self.quantity = quantity
 
+    def to_dict(self):
+        return{
+            'id': self.id,
+            'user_id': self.user_id,
+            'product_id': self.product_id,
+            'quantity': self.quantity
+        }
+        
+
     def __repr__(self):
         return '<Cart %r>' % self.id
 
-class cartItem(db.Model):
+class cartItemModel(db.Model):
     __tablename__ = 'cart_item'
 
     id = db.Column(db.Integer, primary_key=True)
     cart_id = db.Column(db.Integer, db.ForeignKey('cart.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
+
+    def to_dict(self):
+        return{
+            'id': self.id,
+            'cart_id': self.cart_id,
+            'product_id': self.product_id,
+            'quantity': self.quantity
+        }
 
     def __init__(self, cart_id, product_id, quantity):
         self.cart_id = cart_id
@@ -90,13 +122,21 @@ class cartItem(db.Model):
     def __repr__(self):
         return '<CartItem %r>' % self.id        
     
-class Order(db.Model):
+class OrderModel(db.Model):
     __tablename__ = 'order'
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
+
+    def to_dict(self):
+        return{
+            'id': self.id,
+            'user_id': self.user_id,
+            'product_id': self.product_id,
+            'quantity': self.quantity
+        }
 
     def __init__(self, user_id, product_id, quantity):
         self.user_id = user_id
@@ -106,13 +146,21 @@ class Order(db.Model):
     def __repr__(self):
         return '<Order %r>' % self.id
 
-class OrderItem(db.Model):
+class OrderItemModel(db.Model):
     __tablename__ = 'order_item'
 
     id = db.Column(db.Integer, primary_key=True)
     order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
+
+    def to_dict(self):
+        return{
+            'id': self.id,
+            'order_id': self.order_id,
+            'product_id': self.product_id,
+            'quantity': self.quantity
+        }
 
     def __init__(self, order_id, product_id, quantity):
         self.order_id = order_id
@@ -122,18 +170,28 @@ class OrderItem(db.Model):
     def __repr__(self):
         return '<OrderItem %r>' % self.id  
 
-class Review(db.Model):
+class ReviewModel(db.Model):
     __tablename__ = 'review'
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
     rating = db.Column(db.Integer, nullable=False)
+    comment = db.Column(db.Text, nullable=True)
+    def to_dict(self):
+        return{
+            'id': self.id,
+            'user_id': self.user_id,
+            'product_id': self.product_id,
+            'rating': self.rating,
+            'comment': self.comment
+        }
 
-    def __init__(self, user_id, product_id, rating):
+    def __init__(self, user_id, product_id, rating, comment):
         self.user_id = user_id
         self.product_id = product_id
         self.rating = rating
+        self.comment = comment  # This can be None if no comment is provided.
 
     def __repr__(self):
         return '<Review %r>' % self.id          
