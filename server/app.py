@@ -3,6 +3,8 @@ from flask_migrate import Migrate
 from flask_restful import Api, Resource
 from flask_bcrypt import Bcrypt
 from sqlalchemy.exc import IntegrityError
+from waitress import serve
+
 
 from models import db, UserModel, ProductModel, cartModel, cartItemModel, OrderModel, OrderItemModel, ReviewModel
 
@@ -15,16 +17,17 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///data.db'
 # disable modification tracking to use less memory
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# create a Migrate object to manage schema modifications
-migrate = Migrate(app, db)
-
-# create a Bcrypt object to hash passwords
-bcrypt = Bcrypt(app)
-
-# initialize the Flask application to use the database
+# Initialize extensions
 db.init_app(app)
-
+migrate = Migrate(app, db)
+bcrypt = Bcrypt(app)
 api = Api(app)
+
+@app.shell_context_processor
+def make_shell_context():
+    return {'db': db, 'UserModel': UserModel, 'ProductModel': ProductModel, 'cartModel': cartModel, 'cartItemModel': cartItemModel, 'OrderModel': OrderModel, 'OrderItemModel': OrderItemModel, 'ReviewModel': ReviewModel}
+
+
 
 #resource class
 class Home(Resource):
@@ -521,4 +524,4 @@ api.add_resource(ReviewByIdResource, '/reviews/<int:review_id>')
 
 
 if __name__ == '__main__':
-    app.run(port=5000, debug=True)
+    serve(app, host="0.0.0.0", port=50200, threads=4)
