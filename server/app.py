@@ -4,6 +4,7 @@ from flask_restful import Api, Resource
 from flask_bcrypt import Bcrypt
 from sqlalchemy.exc import IntegrityError
 from waitress import serve
+from flask_cors import CORS
 
 
 from models import db, UserModel, ProductModel, cartModel, cartItemModel, OrderModel, OrderItemModel, ReviewModel
@@ -22,6 +23,8 @@ db.init_app(app)
 migrate = Migrate(app, db)
 bcrypt = Bcrypt(app)
 api = Api(app)
+
+CORS(app)
 
 @app.shell_context_processor
 def make_shell_context():
