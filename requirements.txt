@@ -1,0 +1,14 @@
+Flask
+Flask-Migrate
+Flask-RESTful
+Flask-Bcrypt
+SQLAlchemy
+waitress
+Flask-Cors
+Flask-SQLAlchemy
+SQLAlchemy
+SQLAlchemy-Serializer
+Faker
+
+
+
